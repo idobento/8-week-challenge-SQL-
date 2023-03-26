@@ -1,0 +1,61 @@
+A. Pizza Metrics
+
+Q1:
+select count(order_id)
+from customer_orders
+where order_id in (select order_id from runner_orders where cancellation is null)
+
+Q2:
+select count(distinct order_id)
+from customer_orders
+where order_id in (select order_id from runner_orders where cancellation is null)v
+
+Q3:
+select runner_id,count(*) as num_of_succesful_orders
+from runner_orders
+where order_id in (select order_id from runner_orders where cancellation is null)
+group by runner_id
+
+Q4:
+select pizza_id,count(*) as num_of_pizzas_delivered
+from customer_orders
+where order_id in (select order_id from runner_orders where cancellation is null)
+group by pizza_id
+
+Q5:
+select customer_id,pizza_id,count(*) as num_of_pizzas_ordered
+from customer_orders
+group by customer_id,pizza_id
+
+Q6:
+select top 1 count(*) as max_of_pizzas_in_single_delivery
+from customer_orders
+where order_id in (select order_id from runner_orders where cancellation is null)
+group by order_id
+order by count(*) desc
+
+Q7:
+select customer_id,sum(case when extras is NULL AND exclusions is NULL then 1 else 0 end) as pizzas_without_changes,
+sum(case when extras is not NULL or exclusions is not NULL then 1 else 0 end) as pizza_with_changes
+from customer_orders
+where order_id in (select order_id from runner_orders where cancellation is null)
+group by customer_id
+
+Q8:
+select sum(case when extras is not NULL and exclusions is not NULL then 1 else 0 end) as pizzas_with_extras_and_exclusions
+from customer_orders
+where order_id in (select order_id from runner_orders where cancellation is null)
+
+Q9:
+select datepart(hour,order_time) as hour,count(*) as num_of_orders
+from customer_orders
+where order_id in (select order_id from runner_orders where cancellation is null)
+group by datepart(hour,order_time)
+
+Q10:
+select datepart(WEEKDAY,order_time) as week_day,count(*) as num_of_orders
+from customer_orders
+where order_id in (select order_id from runner_orders where cancellation is null)
+group by datepart(WEEKDAY,order_time)
+------------------------------------------------------------------------------------
+
