@@ -59,3 +59,102 @@ where order_id in (select order_id from runner_orders where cancellation is null
 group by datepart(WEEKDAY,order_time)
 ------------------------------------------------------------------------------------
 
+B. Runner and Customer Experience
+#1
+with max_date as(
+select max(registration_date) as last_date
+from runners),
+
+dates as(
+select cast ('2021-01-01' as date) as week_date union all select dateadd(day,7,week_date) as week_date from dates,max_date where week_date<last_date)
+
+select week_date, count(case when datediff(day,week_date,registration_date) between 0 and 6 then 1 else null end) as num
+from dates,runners
+group by week_date
+
+#2
+select runner_id, avg(datediff(mi,order_time,pickup_time)) as avg_pickup_time
+from runner_orders as r
+join customer_orders as c
+on r.order_id=c.order_id
+where pickup_time is not null
+group by runner_id
+
+#3 didnt understand
+
+#4
+select customer_id,avg(cast(distance as float)) as avg_distance
+from customer_orders as c
+join runner_orders as r
+on c.order_id=r.order_id
+where distance is not null
+group by customer_id
+
+#5
+select max(cast(distance as float))-min(cast(distance as float)) as dif_between_max_and_min
+from runner_orders
+
+#6 skipped
+
+#7
+select distinct(runner_id),count(pickup_time) over(partition by runner_id)*100/count(*) over(partition by runner_id) as succesful_delivery_share
+from runner_orders
+
+C. Ingredient Optimisation
+#1
+with toppings as(
+select pizza_id, 
+left(convert(varchar(max),toppings),charindex(',',convert(varchar(max),toppings)+',')-1) as topping_id,
+stuff(convert(varchar(max),toppings),1,charindex(',',convert(varchar(max),toppings)+','),'') as topping_left
+from pizza_recipes
+union all
+select pizza_id, 
+left(topping_left,charindex(',',topping_left+',')-1) as topping_id,
+stuff(topping_left,1,charindex(',',topping_left+','),'') as topping_left
+from toppings
+where topping_left>'')
+
+select pizza_name,topping_name
+from toppings as d 
+join pizza_toppings as t
+on d.topping_id=t.topping_id
+join pizza_names as n
+on d.pizza_id=n.pizza_id
+
+#2
+with orders as(
+select order_id,
+left(convert(varchar(max),extras),CHARINDEX(',',convert(varchar(max),extras)+',')-1) as extras,
+stuff(convert(varchar(max),extras),1,CHARINDEX(',',convert(varchar(max),extras)+','),'') as extras_left
+from customer_orders
+where extras is not null
+union all
+select order_id,
+left(extras_left,CHARINDEX(',',extras_left+',')-1) as extras,
+stuff(extras_left,1,CHARINDEX(',',extras_left+','),'') as extras_left
+from orders
+where extras_left>'')
+
+select top 1 extras,count(extras) as num_of_appearences
+from orders
+group by extras
+order by count(extras) desc
+
+#3
+with orders as(
+select order_id,
+left(convert(varchar(max),exclusions),CHARINDEX(',',convert(varchar(max),exclusions)+',')-1) as exclusions,
+stuff(convert(varchar(max),exclusions),1,CHARINDEX(',',convert(varchar(max),exclusions)+','),'') as exclusions_left
+from customer_orders
+where exclusions is not null
+union all
+select order_id,
+left(exclusions_left,CHARINDEX(',',exclusions_left+',')-1) as exclusions,
+stuff(exclusions_left,1,CHARINDEX(',',exclusions_left+','),'') as exclusions_left
+from orders
+where exclusions_left>'')
+
+select top 1 exclusions,count(exclusions) as num_of_appearences
+from orders
+group by exclusions
+order by count(exclusions) desc
