@@ -158,3 +158,108 @@ select top 1 exclusions,count(exclusions) as num_of_appearences
 from orders
 group by exclusions
 order by count(exclusions) desc
+
+#4
+with new_customer_orders as(
+select ROW_NUMBER() over(order by order_id) as pizza_num,order_id,cast(pizza_name as varchar(max)) as pizza_name,cast(exclusions as varchar(max)) as exclusions,cast(extras as varchar(max)) as extras
+from customer_orders as c
+join pizza_names as p
+on c.pizza_id=p.pizza_id),
+
+orders as (
+select pizza_num,pizza_name,
+left(exclusions,charindex(',',exclusions+',')-1) as new_exclusions,
+stuff(exclusions,1,charindex(',',exclusions+','),'') as exclusions_left,
+left(extras,charindex(',',extras+',')-1) as new_extras,
+stuff(extras,1,charindex(',',extras+','),'') as extras_left
+from new_customer_orders
+union all
+select pizza_num,pizza_name,
+left(exclusions_left,charindex(',',exclusions_left+',')-1) as new_exclusions,
+stuff(exclusions_left,1,charindex(',',exclusions_left+','),'') as exclusions_left,
+left(extras_left,charindex(',',extras_left+',')-1) as new_extras,
+stuff(extras_left,1,charindex(',',extras_left+','),'') as extras_left
+from orders
+where exclusions_left>'' or extras_left>'')
+
+select pizza_num,pizza_name+ case when exclusions is not null then ' - Exclude '+exclusions else '' end+case when extras is not null then ' - Extra '+extras else '' end as order_item
+from (
+select pizza_num,pizza_name,STRING_AGG(cast(exclusions as varchar),',') within group(order by pizza_num) as exclusions,
+STRING_AGG(cast(extras as varchar),',') within group(order by pizza_num) as extras
+from (
+select pizza_num,pizza_name,pt1.topping_name as exclusions,pt2.topping_name as extras
+from orders o
+left join pizza_toppings as pt1
+on o.new_exclusions=pt1.topping_id
+left join pizza_toppings as pt2
+on o.new_extras=pt2.topping_id) as sub 
+group by pizza_num,pizza_name) as sub2
+order by pizza_num
+
+#6
+with new_customer_orders as(
+select ROW_NUMBER() over(order by order_id) as pizza_num,pizza_id,order_id,cast(exclusions as varchar(max)) as exclusions,cast(extras as varchar(max)) as extras,order_time
+from customer_orders as c
+where order_id in (select order_id from runner_orders where pickup_time is not null)),
+
+orders as (
+select pizza_num,pizza_id,
+left(exclusions,charindex(',',exclusions+',')-1) as new_exclusions,
+stuff(exclusions,1,charindex(',',exclusions+','),'') as exclusions_left,
+left(extras,charindex(',',extras+',')-1) as new_extras,
+stuff(extras,1,charindex(',',extras+','),'') as extras_left
+from new_customer_orders
+union all
+select pizza_num,pizza_id,
+left(exclusions_left,charindex(',',exclusions_left+',')-1) as new_exclusions,
+stuff(exclusions_left,1,charindex(',',exclusions_left+','),'') as exclusions_left,
+left(extras_left,charindex(',',extras_left+',')-1) as new_extras,
+stuff(extras_left,1,charindex(',',extras_left+','),'') as extras_left
+from orders
+where exclusions_left>'' or extras_left>''),
+
+new_pizza_recepies as(
+select pizza_id,
+left(cast(toppings as varchar(max)),charindex(',',cast(toppings as varchar(max))+',')-1) as new_toppings,
+stuff(cast(toppings as varchar(max)),1,charindex(',',cast(toppings as varchar(max))+','),'') as toppings_left
+from pizza_recipes
+union all
+select pizza_id,
+left(toppings_left,charindex(',',toppings_left+',')-1) as new_toppings,
+stuff(toppings_left,1,charindex(',',toppings_left+','),'') as toppings_left
+from new_pizza_recepies
+where toppings_left>''),
+
+num_of_pizza_toppings as(
+select topping_id,pizza_id,count(new_toppings) as num
+from new_pizza_recepies as r
+join pizza_toppings as t
+on r.new_toppings=t.topping_id
+group by topping_id,pizza_id)
+
+select sub.topping_id,num_of_toppings-exclusions_num+extras_num as num_of_toppings
+from(
+select topping_id,sum(num_of_toppings) as num_of_toppings
+from(
+select topping_id,r.pizza_id,num*num_of_pizzas as num_of_toppings
+from num_of_pizza_toppings as r
+join(
+select distinct pizza_id,count(*) over (partition by pizza_id) as num_of_pizzas
+from orders) as sub
+on r.pizza_id=sub.pizza_id) as sub
+group by topping_id) as sub
+join(
+select t.topping_id,isnull(exclusions_num,0) as exclusions_num,isnull(extras_num,0) as extras_num
+from pizza_toppings as t
+left join (
+select new_exclusions as topping_id,count(new_exclusions) as exclusions_num
+from orders
+group by new_exclusions) as o
+on t.topping_id=trim(o.topping_id)
+left join (
+select new_extras as topping_id,count(new_extras) as extras_num
+from orders
+group by new_extras) as ord
+on t.topping_id=trim(ord.topping_id)) as sub2
+on sub.topping_id=sub2.topping_id
+order by num_of_toppings desc
