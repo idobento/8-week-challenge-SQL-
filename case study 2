@@ -263,3 +263,64 @@ group by new_extras) as ord
 on t.topping_id=trim(ord.topping_id)) as sub2
 on sub.topping_id=sub2.topping_id
 order by num_of_toppings desc
+
+D. Pricing and Ratings
+#1
+select runner_id,sum(revenue) as total_revenue
+from(
+select cast(pizza_name as varchar(max)) as pizza_name,cast(runner_id as varchar(max)) as runner_id,case when cast(pizza_name as varchar(max))='Meatlovers' then count(*)*12
+when cast(pizza_name as varchar(max))='Vegetarian' then count(*)*10 end as revenue
+from runner_orders as r
+join customer_orders as c
+on r.order_id=c.order_id
+left join pizza_names as p
+on c.pizza_id=p.pizza_id
+where pickup_time is not null
+group by cast(pizza_name as varchar(max)),cast(runner_id as varchar(max))) as sub
+group by runner_id
+
+#2
+select runner_id,sum(revenue) as total_revenue
+from(
+select cast(pizza_name as varchar(max)) as pizza_name,cast(runner_id as varchar(max)) as runner_id,(case when cast(pizza_name as varchar(max))='Meatlovers' then 12
+when cast(pizza_name as varchar(max))='Vegetarian' then 10 end)+(len(isnull(extras,0))-len(REPLACE(isnull(extras,-1),',', ''))+1) as revenue
+from runner_orders as r
+join customer_orders as c
+on r.order_id=c.order_id
+left join pizza_names as p
+on c.pizza_id=p.pizza_id
+where pickup_time is not null) as sub
+group by runner_id
+
+#5
+select sub.runner_id,sum(revenue)-sum(ride_cost) as total_revenue
+from(
+select cast(pizza_name as varchar(max)) as pizza_name,cast(runner_id as varchar(max)) as runner_id,case when cast(pizza_name as varchar(max))='Meatlovers' then count(*)*12
+when cast(pizza_name as varchar(max))='Vegetarian' then count(*)*10 end as revenue
+from runner_orders as r
+join customer_orders as c
+on r.order_id=c.order_id
+left join pizza_names as p
+on c.pizza_id=p.pizza_id
+where pickup_time is not null
+group by cast(pizza_name as varchar(max)),cast(runner_id as varchar(max))) as sub
+join(
+select runner_id,cast(distance as float)*0.3 as ride_cost
+from runner_orders
+where pickup_time is not null) as sub2
+on sub.runner_id=sub2.runner_id
+group by sub.runner_id
+
+SELECT * FROM pizza_names
+INSERT INTO pizza_names VALUES (3, 'Supreme')
+SELECT * FROM pizza_names
+
+
+E. Bonus Questions
+SELECT * FROM pizza_names
+INSERT INTO pizza_names VALUES (3, 'Supreme')
+SELECT * FROM pizza_names
+
+SELECT * FROM pizza_recipes
+INSERT INTO pizza_recipes VALUES (3, '1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12')
+SELECT * FROM pizza_recipes
