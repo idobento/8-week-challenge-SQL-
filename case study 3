@@ -1,1 +1,84 @@
+B. Data Analysis Questions
+#1
+select count(distinct customer_id)
+from subscriptions
+where plan_id!=0
 
+#2
+select month(start_date) as start_month,count(*) as num_of_trial_subsctiptions
+from subscriptions
+where plan_id=0
+group by month(start_date)
+order by month(start_date)
+
+#3
+select plan_id,count(*) as num_of_subscriptions
+from subscriptions
+where year(start_date)>2020
+group by plan_id
+
+#4
+select num_of_subscriptions,share
+from(
+select plan_id, count(*) as num_of_subscriptions, cast(count(*) *100/ sum(count(*)) over() as varchar(max))+'%' as share
+from subscriptions
+group by plan_id) as sub
+where plan_id=4
+
+#5
+select count(*) as num_of_churned_right_after_trial
+from(
+select *,plan_id-lag(plan_id) over(partition by customer_id order by start_date) as change_from_last_subscription
+from subscriptions) as sub
+where change_from_last_subscription=4
+
+#6
+select plan_id,count(*) as num_of_subscriptions,cast(count(*)*100/sum(count(*)) over() as varchar(max))+'%' as share
+from subscriptions
+where plan_id!=0
+group by plan_id
+order by plan_id
+
+#7
+select plan_id,count(*) as num_of_subscriptions,cast(count(*)*100/sum(count(*)) over() as varchar(max))+'%' as share
+from subscriptions
+where start_date<='2020-12-31'
+group by plan_id
+order by plan_id
+
+#8
+select count(distinct customer_id)
+from subscriptions
+where year(start_date)=2020 and plan_id=3
+
+#9
+with first_date as(
+select distinct customer_id,start_date as join_date
+from subscriptions
+where plan_id=0)
+
+select avg(datediff(day,join_date,start_date))
+from subscriptions join first_date on subscriptions.customer_id=first_date.customer_id
+where plan_id=3
+
+#10
+with first_date as(
+select distinct customer_id,start_date as join_date
+from subscriptions
+where plan_id=0)
+
+select time_period,count(time_period) as num
+from(
+select case when datediff(day,join_date,start_date) between 0 and 30 then '0-30 days'
+when datediff(day,join_date,start_date) between 31 and 60 then '31-60 days'
+else 'more than 60 days' end as time_period
+from subscriptions join first_date on subscriptions.customer_id=first_date.customer_id
+where plan_id=3) as sub
+group by time_period
+
+#11
+select count(*) as pro_monthly_to_basic
+from(
+select *,plan_id-lag(plan_id) over(partition by customer_id order by customer_id,start_date) as change
+from subscriptions) as sub
+where change=-1 and year(start_date)=2020
