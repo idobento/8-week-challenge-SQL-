@@ -82,3 +82,94 @@ from(
 select *,plan_id-lag(plan_id) over(partition by customer_id order by customer_id,start_date) as change
 from subscriptions) as sub
 where change=-1 and year(start_date)=2020
+
+
+D. Outside The Box Questions
+#1
+-- check the new customers (trials) each month
+select month_start,count(*) as new_trials,(count(*)-lag(count(*)) over (order by month_start))*100/lag(count(*)) over(order by month_start) as 'change_in_%'
+from(
+select distinct(left(start_date,7)) as month_start
+from subscriptions
+where plan_id=0) as sub
+left join subscriptions as s
+on sub.month_start=left(s.start_date,7)
+where plan_id=0
+group by month_start
+
+-- check the churn rate
+select churn.month_start,num_churn*100/num_paying_customers as churn_rate
+from(
+select month_start,count(distinct customer_id) as num_churn
+from(
+select distinct(left(start_date,7)) as month_start
+from subscriptions
+where plan_id=0) as sub
+left join subscriptions as s
+on sub.month_start=left(s.start_date,7)
+where plan_id=4
+group by month_start) as churn
+join(
+select month_start,count(distinct customer_id) as num_paying_customers
+from(
+select distinct(left(start_date,7)) as month_start
+from subscriptions
+where plan_id=0) as sub
+left join subscriptions as s
+on sub.month_start=left(s.start_date,7)
+where plan_id in (1,2,3)
+group by month_start) as paying_customers
+on churn.month_start=paying_customers.month_start
+
+--check the CVR
+with months as (
+select distinct(left(start_date,7)) as month_start
+from subscriptions
+where plan_id=0)
+
+select CVR.month_start,num_of_CVR,new_trials,num_of_CVR*100/new_trials as CVR_rate
+from(
+select month_start,count(*) as num_of_CVR
+from(
+select month_start,customer_id,plan_id,lead(plan_id) over(partition by customer_id order by start_date) as next_plan
+from (select distinct(left(start_date,7)) as month_start
+from subscriptions
+where plan_id=0) as sub
+left join subscriptions as s
+on sub.month_start=left(s.start_date,7)) as CVR
+where next_plan in(1,2,3) and plan_id=0
+group by month_start) as CVR
+join(
+select month_start,count(distinct customer_id) as new_trials
+from months
+left join subscriptions as s
+on months.month_start=left(s.start_date,7)
+where plan_id=0
+group by month_start) as trials
+on trials.month_start=CVR.month_start
+
+--check the num of active paying users
+with months as (
+select distinct(left(start_date,7)) as month_start
+from subscriptions)
+
+select month_year, count(*) as num_paying_users
+from(
+select *, case when month_year>=become_paying and month_year<=churn then 'Active' else 'Inactive' end as user_status
+from(
+select customer_id,become_paying,churn,month_start as month_year
+from(
+select s.customer_id,become_paying,left(s.start_date,7) as churn
+from(
+select a.customer_id as customer_id,left(b.start_date,7) as become_paying
+from subscriptions as a
+join subscriptions as b
+on a.customer_id=b.customer_id and a.plan_id=0 and b.plan_id in (1,2,3) and a.start_date<b.start_date) as sub
+join subscriptions as s
+on sub.customer_id=s.customer_id
+where plan_id=4) as c
+right join months as m
+on 1=1) as sub) as sub
+where user_status='Active'
+group by month_year
+order by month_year
