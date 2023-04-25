@@ -1,0 +1,36 @@
+Case Study #4 - Data Bank
+
+A. Customer Nodes Exploration
+#1
+select count(distinct node_id) as num_of_unique_nodes
+from customer_nodes
+
+#2
+select region_id, count(node_id) as num_of_nodes
+from customer_nodes
+group by region_id
+order by region_id
+
+#3
+select region_id, count(distinct customer_id) as num_of_nodes
+from customer_nodes
+group by region_id
+order by region_id
+
+#4
+select avg(DATEDIFF(day,start_date,end_date))
+from(
+select *,lead(start_date) over(partition by customer_id order by start_date) as rellocated_date,lead(node_id) over(partition by customer_id order by start_date) as rellocated_node
+from customer_nodes) as sub
+where dateadd(day,1,case when end_date= '9999-12-31' then '1900-01-01' else end_date end)=rellocated_date and node_id!=rellocated_node
+
+#5
+WITH days_diff AS(
+SELECT region_id, CASE WHEN end_date = '9999-12-31' THEN DATEDIFF(day, start_date, GETDATE())
+			ELSE DATEDIFF(day, start_date, end_date) END AS 'days_in_node'
+FROM customer_nodes cn)
+
+SELECT DISTINCT region_id, PERCENTILE_CONT(0.5) WITHIN GROUP(ORDER BY days_in_node) OVER(PARTITION BY region_id) 'median',
+		PERCENTILE_CONT(0.8) WITHIN GROUP(ORDER BY days_in_node) OVER(PARTITION BY region_id) '0.8',
+		PERCENTILE_CONT(0.95) WITHIN GROUP(ORDER BY days_in_node) OVER(PARTITION BY region_id) '0.95'
+FROM days_diff
