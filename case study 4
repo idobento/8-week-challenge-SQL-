@@ -34,3 +34,58 @@ SELECT DISTINCT region_id, PERCENTILE_CONT(0.5) WITHIN GROUP(ORDER BY days_in_no
 		PERCENTILE_CONT(0.8) WITHIN GROUP(ORDER BY days_in_node) OVER(PARTITION BY region_id) '0.8',
 		PERCENTILE_CONT(0.95) WITHIN GROUP(ORDER BY days_in_node) OVER(PARTITION BY region_id) '0.95'
 FROM days_diff
+
+B. Customer Transactions
+#1
+select txn_type,count(*) as num
+from customer_transactions
+group by txn_type
+union all ---chose union to put total in the end
+select 'total',count(*)
+from customer_transactions
+
+#2
+select avg(dep_total_amount) as avg_dep_amount,avg(dep_total_counts) as avg_dep_count
+from(
+select customer_id,sum(txn_amount) as dep_total_amount,count(txn_amount) as dep_total_counts
+from customer_transactions
+where txn_type='deposit'
+group by customer_id) as sub
+
+#3
+select month_,count(*) as num_of_relevant_customers
+from(
+select customer_id,FORMAT(txn_date,'yyyy-MM') as month_,sum(case when txn_type='deposit' then 1 else 0 end) as 'deposits',
+sum(case when txn_type='purchase' then 1 else 0 end) as 'purchases',sum(case when txn_type='withdrawal' then 1 else 0 end) as 'withdrawals'
+from customer_transactions
+group by customer_id,FORMAT(txn_date,'yyyy-MM')) as sub
+where deposits>1 and (purchases>1 or withdrawals>1)
+group by month_
+
+#4
+select customer_id,month_,sum(balance) as balance
+from(
+select customer_id,FORMAT(txn_date,'yyyy-MM') as month_,
+case when txn_type='deposit' then +txn_amount
+else -txn_amount end as balance
+from customer_transactions) as sub
+group by customer_id,month_
+order by customer_id,month_
+
+#5
+with monthly_balance as(
+select customer_id,month_,sum(balance) as balance
+from(
+select customer_id,FORMAT(txn_date,'yyyy-MM') as month_,
+case when txn_type='deposit' then +txn_amount
+else -txn_amount end as balance
+from customer_transactions) as sub
+group by customer_id,month_) 
+
+select month_,
+sum(case when prev_balance*1.05<balance and balance is not NULL then 1 else 0 end)*100/sum(count(*)) over (partition by month_) as share_of_cst
+from(
+select month_,balance,
+lag(balance,1) over(partition by customer_id order by month_) as prev_balance
+from monthly_balance) as sub
+group by month_
