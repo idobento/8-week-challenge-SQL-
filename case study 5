@@ -1,0 +1,63 @@
+2. Digital Analysis
+#1
+SELECT count(distinct user_id)
+FROM clique_bait.Users
+
+#2
+SELECT count( cookie_id)/count(distinct user_id)
+FROM clique_bait.Users
+
+#3
+SELECT left(event_time::varchar(20),7) as month, count(distinct visit_id) as num_of_visits
+FROM clique_bait.Events
+group by left(event_time::varchar(20),7)
+
+#4
+SELECT event_type,count(*)
+FROM clique_bait.events
+group by event_type
+
+#5
+with purchase_visits as (
+select distinct visit_id,1 as is_purchase
+from clique_bait.events
+where event_type=3)
+
+select sum(is_purchase)*100/count(is_purchase) as purchase_visits_share
+from(
+select distinct visit_id,0 as is_purchase
+from clique_bait.events
+where visit_id not in(select visit_id from purchase_visits)
+union
+select *
+from purchase_visits) as sub
+
+#6
+with purchase_visits as (
+select distinct visit_id,1 as is_purchase
+from clique_bait.events
+where event_type=3)
+
+select is_purchase,round(count(*)*100/sum(count(*)) over(),2)
+from(
+select visit_id,0 as is_purchase
+from clique_bait.events
+where page_id=12 and visit_id not in (select visit_id from purchase_visits)
+union 
+select *
+from purchase_visits) as sub
+group by is_purchase
+
+#####option 2
+with page_view as (
+select distinct visit_id
+from clique_bait.events
+where page_id=12),
+
+no_purchased as (
+select distinct visit_id
+from page_view
+where visit_id not in (select distinct visit_id from clique_bait.events where event_type=3))
+
+select round(round(count(*)*100,2)/(select count(*) from page_view),2) as shares
+from no_purchased
