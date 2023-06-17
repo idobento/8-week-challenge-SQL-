@@ -61,3 +61,40 @@ where visit_id not in (select distinct visit_id from clique_bait.events where ev
 
 select round(round(count(*)*100,2)/(select count(*) from page_view),2) as shares
 from no_purchased
+
+#7
+select top 3 page_id,count(*) as num_of_visits
+from clique_bait.events
+group by page_id
+order by count(*) desc
+
+#8
+with page_view as(
+select page_id,count(*) as page_views
+from clique_bait.events
+where event_type=1
+group by page_id),
+
+add_to_cart as(
+select page_id,count(*) as add_to_cart
+from clique_bait.events
+where event_type=2
+group by page_id)
+
+select product_category,sum(page_views) as page_views,sum(add_to_cart) as add_to_cart
+from(
+select distinct c.page_id,page_views,add_to_cart
+from clique_bait.events as c
+left join page_view on page_view.page_id=c.page_id
+left join add_to_cart on add_to_cart.page_id=c.page_id) as sub
+join clique_bait.page_hierarchy as p on sub.page_id=p.page_id
+group by product_category
+
+#9
+select product_id,purchases
+from(
+select page_id,count(*) as purchases
+from clique_bait.events
+where event_type=3
+group by page_id) as sub
+join clique_bait.page_hierarchy as p on p.page_id=sub.page_id
