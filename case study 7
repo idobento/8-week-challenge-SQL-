@@ -1,1 +1,89 @@
+High Level Sales Analysis
+#1
+select sum(qty)
+from balanced_tree.sales
+
+#2
+select sum(qty*price)
+from balanced_tree.sales
+
+#3
+select sum(discount)
+from balanced_tree.sales
+
+Transaction Analysis
+#1
+select count(distinct txn_id)
+from balanced_tree.sales
+
+#2
+select avg(unique_products)
+from(
+select txn_id,cast(count(*) as float) as unique_products
+from balanced_tree.sales
+group by txn_id) as sub
+
+#3
+select distinct PERCENTILE_CONT(0.25) within group(order by revenue) over() as "0.25th",
+PERCENTILE_CONT(0.5) within group(order by revenue) over() as "0.5th",
+PERCENTILE_CONT(0.75) within group(order by revenue) over() as "0.75th"
+from(
+select txn_id,sum(qty*price*(1-discount*0.01)) as revenue
+from balanced_tree.sales
+group by txn_id) as sub
+
+#4
+select avg(avg_discount) as avg_discount
+from(
+select txn_id,avg(cast(discount as float)) as avg_discount
+from balanced_tree.sales
+group by txn_id) as sub
+
+#5
+select member,cast(count(*)*100/sum(count(*)*1.0) over() as decimal(4,2))
+from balanced_tree.sales
+group by member
+
+#6
+select member,cast(sum(qty*price*(1-discount*0.01))/count(distinct txn_id) as decimal(5,2)) as avg_revenue
+from balanced_tree.sales
+group by member
+
+product analysis
+#1
+select top 3 product_name, sum(s.qty*s.price) as revenue
+from balanced_tree.sales s
+join balanced_tree.product_details d on s.prod_id=d.product_id
+group by product_name
+order by sum(s.qty*s.price) desc
+
+#2
+with revenues as (
+select prod_id, qty*price*((100-discount)*0.01) as r
+from balanced_tree.sales)
+
+select segment_id ,sum(r) as revenue
+from(
+select r.*, segment_id
+from revenues as r join balanced_tree.product_details as d
+on r.prod_id=d.product_id) as sub
+group by segment_id
+
+#3
+select prod_id,total_qty
+from(
+select prod_id,sum(qty) as total_qty, row_number() over (partition by segment_id order by sum(qty)) as rn
+from balanced_tree.sales as s
+join balanced_tree.product_details as pd
+on s.prod_id=pd.product_id
+group by segment_id,prod_id) as sub
+where rn=1
+
+#4
+select category_id,sum(qty) as total_qty,sum(qty*s.price*(1-discount/100)) as total_revenue
+from balanced_tree.sales as s
+join balanced_tree.product_details as pd
+on s.prod_id=pd.product_id
+group by category_id
+
 
