@@ -125,3 +125,15 @@ join balanced_tree.product_details as pd
 on s.prod_id=pd.product_id
 group by category_id) as sub
 order by category_id desc
+
+#10
+WITH combinations AS(
+	SELECT s1.prod_id 'product1' , s2.prod_id 'product2' , s3.prod_id 'product3', COUNT(*) 'num_transactions'
+	FROM balanced_tree.sales s1 JOIN balanced_tree.sales s2 ON s1.prod_id < s2.prod_id AND s1.txn_id = s2.txn_id
+	JOIN balanced_tree.sales s3 ON s2.prod_id < s3.prod_id AND s2.txn_id = s3.txn_id
+	GROUP BY s1.prod_id, s2.prod_id, s3.prod_id
+)
+
+SELECT *
+FROM combinations
+WHERE num_transactions IN (SELECT MAX(num_transactions) FROM combinations)
