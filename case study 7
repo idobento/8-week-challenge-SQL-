@@ -86,4 +86,42 @@ join balanced_tree.product_details as pd
 on s.prod_id=pd.product_id
 group by category_id
 
+#5
+select category_id,product_id,total_qty
+from(
+select category_id,product_id,sum(qty) as total_qty, ROW_NUMBER() over(partition by category_id order by category_id,sum(qty) desc) as rn
+from balanced_tree.sales as s
+join balanced_tree.product_details as pd
+on s.prod_id=pd.product_id
+group by category_id,product_id) as sub
+where rn=1
 
+#6
+select segment_id,product_id,revenue,cast(revenue*100.0/sum(revenue) over(partition by segment_id) as decimal(4,2)) as share
+from(
+select segment_id,product_id,sum(qty*s.price*(100-discount)/100) as revenue
+from balanced_tree.sales as s
+join balanced_tree.product_details as pd
+on s.prod_id=pd.product_id
+group by segment_id,product_id) as sub
+order by segment_id desc
+
+#7
+select category_id,segment_id,revenue,cast(revenue*100.0/sum(revenue) over(partition by category_id) as decimal(4,2)) as share
+from(
+select segment_id,category_id,sum(qty*s.price*(100-discount)/100) as revenue
+from balanced_tree.sales as s
+join balanced_tree.product_details as pd
+on s.prod_id=pd.product_id
+group by category_id,segment_id) as sub
+order by category_id,segment_id desc
+
+#8
+select category_id,revenue,cast(revenue*100.0/sum(revenue) over() as decimal(4,2)) as share
+from(
+select category_id,sum(qty*s.price*(100-discount)/100) as revenue
+from balanced_tree.sales as s
+join balanced_tree.product_details as pd
+on s.prod_id=pd.product_id
+group by category_id) as sub
+order by category_id desc
