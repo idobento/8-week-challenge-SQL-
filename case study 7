@@ -58,16 +58,17 @@ group by product_name
 order by sum(s.qty*s.price) desc
 
 #2
-with revenues as (
-select prod_id, qty*price*((100-discount)*0.01) as r
-from balanced_tree.sales)
+with sales as (
+select *,(qty*price) as revenue, (qty*price)*discount/100 as discount_amount
+from balanced_tree.sales
+)
 
-select segment_id ,sum(r) as revenue
-from(
-select r.*, segment_id
-from revenues as r join balanced_tree.product_details as d
-on r.prod_id=d.product_id) as sub
+select segment_id,sum(revenue) as revenues,sum(qty) as quantity,sum(discount_amount) as total_discount
+from sales as s
+join balanced_tree.product_details as pd
+on pd.product_id=s.prod_id
 group by segment_id
+order by segment_id
 
 #3
 select prod_id,total_qty
