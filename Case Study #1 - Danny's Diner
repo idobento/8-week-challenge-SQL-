@@ -1,0 +1,95 @@
+Case Study #1 - Danny's Diner
+https://8weeksqlchallenge.com/case-study-1/
+-------------------------------------------------------
+Case Study Questions
+
+#1
+select customer_id,sum(price) as total_spent
+from sales as s
+join menu as m
+on s.product_id=m.product_id
+group by customer_id
+
+#2
+select customer_id,count(distinct order_date) as days_visited
+from sales as s
+group by customer_id
+
+#3
+with orders as (
+select customer_id,product_name,ROW_NUMBER() over(partition by customer_id order by order_date asc) as rn
+from sales as s
+join menu as m
+on s.product_id=m.product_id)
+
+select customer_id,product_name
+from orders
+where rn=1
+
+#4
+select top 1 product_name,count(*) as purchases_num
+from sales as s
+join menu as m
+on s.product_id=m.product_id
+group by product_name
+order by count(*) desc
+
+#5
+with orders as (
+select customer_id,product_name,count(*) as purchases_num, rank() over(partition by customer_id order by count(*) desc) as rn 
+from sales as s
+join menu as m
+on s.product_id=m.product_id
+group by customer_id,product_name)
+
+select customer_id,product_name
+from orders
+where rn=1
+
+#6
+with orders as( 
+select s.customer_id,product_name,order_date, row_number() over(partition by s.customer_id order by order_date asc) as rn
+from sales as s
+join members as m on s.customer_id=m.customer_id
+join menu as me on s.product_id=me.product_id
+where join_date<=order_date)
+
+select customer_id,product_name,order_date
+from orders 
+where rn=1
+
+#8
+with orders_pre_membersip as (
+select s.customer_id,product_name,order_date,price
+from sales as s
+join members as m on s.customer_id=m.customer_id
+join menu as me on s.product_id=me.product_id
+where join_date>order_date) 
+
+select customer_id,count(*) as products_sold,sum(price) as total_spent
+from orders_pre_membersip
+group by customer_id
+
+#9
+with orders as(
+select customer_id,
+sum(case when product_name != 'sushi' then price else 0 end) as total_spent_not_sushi,
+sum(case when product_name ='sushi' then price else 0 end) as total_spent_sushi
+from sales as s
+join menu as m on s.product_id=m.product_id
+group by customer_id)
+
+select customer_id, (total_spent_not_sushi*10)+(total_spent_sushi*20) as total_points
+from orders
+
+#10
+SELECT s.customer_id,
+		SUM(CASE
+			WHEN DATEDIFF(DAY, join_date, order_date) < 7 THEN 20*price
+			WHEN DATEDIFF(DAY, join_date, order_date) >= 7 AND product_name = 'sushi' THEN 20*price
+			ELSE 10*price END) 'Points'
+FROM sales s JOIN menu m ON s.product_id = m.product_id
+	JOIN members me ON s.customer_id = me.customer_id
+WHERE order_date < '2021-02-01' AND order_date >= join_date
+GROUP BY s.customer_id
+ORDER BY 2 DESC
