@@ -1,4 +1,3 @@
 Hey,
-Here are my solution for the 8weekchallenge, written by from https://8weeksqlchallenge.com/
-Notice that I used MS-SQL in these exerecises.
-גג
+Here are my solved SQL queries for the 8 week challenge's exercise, you can find the questions here: https://8weeksqlchallenge.com/.
+Notice I used MS-SQL.
