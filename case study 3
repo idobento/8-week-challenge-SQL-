@@ -1,3 +1,7 @@
+Case Study #3 - Foodie-Fi
+https://8weeksqlchallenge.com/case-study-3/
+------------------------------------------------------------------------------------
+
 B. Data Analysis Questions
 #1
 select count(distinct customer_id)
@@ -83,6 +87,7 @@ select *,plan_id-lag(plan_id) over(partition by customer_id order by customer_id
 from subscriptions) as sub
 where change=-1 and year(start_date)=2020
 
+------------------------------------------------------------------------------------
 
 D. Outside The Box Questions
 #1
