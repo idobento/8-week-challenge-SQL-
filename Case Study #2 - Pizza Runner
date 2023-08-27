@@ -1,3 +1,6 @@
+Case Study #2 - Pizza Runner
+https://8weeksqlchallenge.com/case-study-2/
+------------------------------------------------------------------------------------
 
 A. Pizza Metrics
 
@@ -100,6 +103,8 @@ from runner_orders
 #7
 select distinct(runner_id),count(pickup_time) over(partition by runner_id)*100/count(*) over(partition by runner_id) as succesful_delivery_share
 from runner_orders
+
+------------------------------------------------------------------------------------
 
 C. Ingredient Optimisation
 #1
@@ -265,6 +270,8 @@ on t.topping_id=trim(ord.topping_id)) as sub2
 on sub.topping_id=sub2.topping_id
 order by num_of_toppings desc
 
+------------------------------------------------------------------------------------
+
 D. Pricing and Ratings
 #1
 select runner_id,sum(revenue) as total_revenue
@@ -311,6 +318,8 @@ from runner_orders
 where pickup_time is not null) as sub2
 on sub.runner_id=sub2.runner_id
 group by sub.runner_id
+
+------------------------------------------------------------------------------------
 
 E. Bonus Questions
 SELECT * FROM pizza_names
